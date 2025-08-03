@@ -1,0 +1,3 @@
+Date,Amount,Type,Merchant,Suspicious
+2025-08-02,49000,Debit,Unknown,True
+2025-08-04,99999,Debit,Hackermarket,True

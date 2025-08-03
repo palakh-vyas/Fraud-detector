@@ -1,0 +1,6 @@
+Date,Amount,Type,Merchant
+2025-08-01,500,Debit,Zomato
+2025-08-02,20000,Credit,NEFT
+2025-08-02,49000,Debit,Unknown
+2025-08-03,600,Debit,Swiggy
+2025-08-04,99999,Debit,Hackermarket
