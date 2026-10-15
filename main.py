@@ -1,77 +1,91 @@
-<<<<<<< HEAD
-import mysql.connector
+"""
+main.py
+-------
+Seeds the SQLite database (fraud_detection.db) from transactions.csv.
+Run after generate_data.py has produced the CSV.
+
+Usage:  python main.py
+"""
+
+import sqlite3
 import pandas as pd
+import os
 
-# 1. Load the transaction data
-df = pd.read_csv("transactions.csv")
-
-
-# 2. Define rules for suspicious transactions
-def is_suspicious(row):
-  return row["Amount"] > 30000 or row["Merchant"] in ["Unknown", "Hackermarket"]
+DB_PATH = "fraud_detection.db"
+CSV_PATH = "transactions.csv"
 
 
-# Apply rules and save filtered output
-df["Suspicious"] = df.apply(is_suspicious, axis=1)
-suspicious_df = df[df["Suspicious"] == True]
-suspicious_df.to_csv("suspicious_transactions.csv", index=False)
-print("Suspicious transactions saved to suspicious_transactions.csv")
+def seed_database():
+    if not os.path.exists(CSV_PATH):
+        print(f"ERROR: {CSV_PATH} not found. Run generate_data.py first.")
+        return
 
-# 3. Connect to MySQL and insert all records
-try:
-  conn = mysql.connector.connect(
-      host="localhost",
-      user="root",
-      password="MaTaJ@090",  # Replace with your MySQL root password
-      database="fraud_detection_db",
-  )
-  cursor = conn.cursor()
+    print(f"Loading {CSV_PATH}...")
+    df = pd.read_csv(CSV_PATH)
+    print(f"  {len(df)} rows loaded.")
 
-  # Create table if it doesn't exist yet
-  cursor.execute("""
-        CREATE TABLE IF NOT EXISTS transactions (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            Amount FLOAT,
-            Merchant VARCHAR(255),
-            Suspicious BOOLEAN
+    # Connect / create SQLite DB
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Drop + recreate table for a clean seed
+    cursor.execute("DROP TABLE IF EXISTS transactions")
+    cursor.execute("""
+        CREATE TABLE transactions (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            TransactionID     TEXT,
+            Date              TEXT,
+            Hour              INTEGER,
+            DayOfWeek         INTEGER,
+            IsWeekend         INTEGER,
+            Amount            REAL,
+            Type              TEXT,
+            Merchant          TEXT,
+            MerchantCategory  TEXT,
+            MerchantRiskScore REAL,
+            UserID            TEXT,
+            TxFrequency       INTEGER,
+            AvgUserAmount     REAL,
+            StdUserAmount     REAL,
+            AmountDeviation   REAL,
+            IsHighAmount      INTEGER,
+            IsNightTx         INTEGER,
+            HourSin           REAL,
+            HourCos           REAL,
+            Suspicious        INTEGER
         )
     """)
 
-  # Insert data row by row
-  for _, row in df.iterrows():
-    cursor.execute(
-        """
-            INSERT INTO transactions (Amount, Merchant, Suspicious) 
-            VALUES (%s, %s, %s)
-        """,
-        (float(row["Amount"]), str(row["Merchant"]), bool(row["Suspicious"])),
-    )
+    # Insert rows
+    cols = [
+        "TransactionID", "Date", "Hour", "DayOfWeek", "IsWeekend",
+        "Amount", "Type", "Merchant", "MerchantCategory", "MerchantRiskScore",
+        "UserID", "TxFrequency", "AvgUserAmount", "StdUserAmount",
+        "AmountDeviation", "IsHighAmount", "IsNightTx", "HourSin", "HourCos",
+        "Suspicious",
+    ]
+    for _, row in df[cols].iterrows():
+        cursor.execute(
+            f"INSERT INTO transactions ({', '.join(cols)}) VALUES ({', '.join(['?']*len(cols))})",
+            tuple(row[c] for c in cols)
+        )
 
-  conn.commit()
-  cursor.close()
-  conn.close()
-  print("Data successfully uploaded and synced with MySQL database!")
+    conn.commit()
 
-except Exception as e:
-  print(f"MySQL Error: {e}")
-=======
-import pandas as pd
+    # Verify
+    count = cursor.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
+    fraud = cursor.execute("SELECT COUNT(*) FROM transactions WHERE Suspicious=1").fetchone()[0]
+    cursor.close()
+    conn.close()
 
-# Load the transaction data
-df = pd.read_csv("transactions.csv")
+    print(f"Database seeded: {count} rows in {DB_PATH}")
+    print(f"  Suspicious: {fraud} | Safe: {count - fraud}")
 
-# Define rules for suspicious transactions
-def is_suspicious(row):
-    return row['Amount'] > 30000 or row['Merchant'] in ['Unknown', 'Hackermarket']
+    # Also save suspicious_transactions.csv
+    suspicious_df = df[df["Suspicious"] == 1]
+    suspicious_df.to_csv("suspicious_transactions.csv", index=False)
+    print(f"  suspicious_transactions.csv updated ({len(suspicious_df)} rows)")
 
-# Apply the rules
-df['Suspicious'] = df.apply(is_suspicious, axis=1)
 
-# Filter suspicious ones
-suspicious_df = df[df['Suspicious'] == True]
-
-# Save suspicious transactions to a new file
-suspicious_df.to_csv("suspicious_transactions.csv", index=False)
-
-print("Suspicious transactions saved to suspicious_transactions.csv")
->>>>>>> dfd47746834b7d5b7dbd2ab4e929d7494bf3836e
+if __name__ == "__main__":
+    seed_database()

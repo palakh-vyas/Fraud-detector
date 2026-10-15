@@ -1,0 +1,11 @@
+streamlit>=1.57
+pandas>=2.0
+plotly>=5.0
+sqlalchemy>=2.0
+xgboost>=2.0
+scikit-learn>=1.4
+imbalanced-learn>=0.12
+shap>=0.46
+numpy>=1.26
+fpdf2>=2.7
+python-dotenv>=1.0
